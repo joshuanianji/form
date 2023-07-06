@@ -36,7 +36,7 @@
 </template>
 
 <script lang="ts" setup>
-    import { useForm } from '@/../..';
+    import { useForm } from '@/../../..';
 
     const sleep = (length: number) => new Promise(resolve => window.setTimeout(resolve, length * 1000));
 
@@ -71,3 +71,4 @@
         color: red;
     }
 </style>
+@/index

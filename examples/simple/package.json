@@ -1,6 +1,6 @@
 {
     "private": true,
-    "name": "@evilkiwi/form-example",
+    "name": "@evilkiwi/form-examples-simple",
     "scripts": {
         "dev": "vite"
     },
