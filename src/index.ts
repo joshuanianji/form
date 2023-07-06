@@ -128,7 +128,7 @@ export function useForm<Fields extends DefaultFields>(options: Options<Fields>) 
         const valid = await validate();
 
         if (valid) {
-            await run(fields.value as FieldValues<Fields>);
+            await run(fields.value as Fields);
         }
 
         loading.value = false;

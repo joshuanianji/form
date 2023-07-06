@@ -18,7 +18,7 @@ export type DeepCopy<T extends DefaultFields, Value extends unknown = undefined>
 };
 
 export interface Options<Fields extends DefaultFields> {
-    defaults?: DeepPartial<FieldValues<Fields>>;
+    defaults?: DeepPartial<Fields>;
     validationMode?: 'change' | 'submit';
 }
 
@@ -66,9 +66,9 @@ export interface Field<T> {
 // the Typescript autocomplete (at least for v4.9.3) makes the types kinda ugly
 // We can prettify the type using a simple helper type
 // https://www.totaltypescript.com/concepts/the-prettify-helper
-// export type Prettify<T> = {
-//     [K in keyof T]: T[K]
-// } & {};
+export type Prettify<T> = {
+    [K in keyof T]: Prettify<T[K]>
+} & {};
 
 // export type NestedKeyOf<T extends DefaultFields> = Prettify<NestedKeyOfRaw<T>>;
 
@@ -87,13 +87,14 @@ export type TypeFromPath<
     T extends DefaultFields,
     Path extends NestedKeyOf<T>
 > = {
-    [K in Path]: K extends `${infer P}.${infer S}`
+    [K in Path]: K extends keyof T ? T[K] // base case
+    : K extends `${infer P}.${infer S}`
     ? T[P] extends DefaultFields
     ? S extends NestedKeyOf<T[P]>
     ? TypeFromPath<T[P], S>
     : never
     : never
-    : never;
+    : never
 }[Path];
 
 type MyForm = {
@@ -121,3 +122,5 @@ type MyFormRules = RuleItemized<MyForm>;
 type MyFormTypes = NestedKeyOf<MyForm>;
 
 type MyFormEmail = TypeFromPath<MyForm, 'demographic.age'>;
+
+type PartialMyForm = Prettify<DeepPartial<MyForm>>

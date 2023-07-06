@@ -66,7 +66,7 @@
     const password = useField('userDetails.password', {
         required: true,
     });
-    const age = useField('demographic', {
+    const age = useField('demographic.age', {
         required: true
     })
 
