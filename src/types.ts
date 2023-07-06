@@ -3,8 +3,13 @@ import type { RuleItem, ValidateError } from 'async-validator';
 
 export type DefaultFields = Record<string, unknown>;
 
+// https://stackoverflow.com/a/61132308
+export type DeepPartial<T> = T extends object ? {
+    [P in keyof T]?: DeepPartial<T[P]>;
+} : T;
+
 export interface Options<Fields extends DefaultFields> {
-    defaults?: Partial<FieldValues<Fields>>;
+    defaults?: DeepPartial<FieldValues<Fields>>;
     validationMode?: 'change'|'submit';
 }
 
