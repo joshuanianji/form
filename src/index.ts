@@ -1,20 +1,28 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import type { RuleItem, ValidateError } from 'async-validator';
 import Validator from 'async-validator';
-import type { DefaultFields, FieldOptions, Field, FieldValues, Options } from './types';
+import type { DefaultFields, FieldOptions, Field, FieldValues, Options, NestedKeyOf, TypeFromPath, DeepCopy, DeepPartial, RuleItemized } from './types';
+import { assignDefaults, getNestedProp } from './util';
+
 
 export function useForm<Fields extends DefaultFields>(options: Options<Fields>) {
     // Assign some helper types on a per-instance basis.
     type Keys = keyof Fields;
-    type FieldStore = { [K in Keys]: Fields[K] };
-    type ErrorStore = { [K in Keys]: ValidateError[] };
+
+    // FieldStore and ErrorStore mimic the structure of Fields.
+    // https://ghaiklor.github.io/type-challenges-solutions/en/medium-deep-readonly.html
+    // https://www.reddit.com/r/typescript/comments/tq3m4f/the_difference_between_object_and_recordstring/
+    type FieldStore = DeepCopy<Fields>;
+    // set all field values to ValidateError[]
+    type ErrorStore = DeepCopy<Fields, ValidateError[]>;
 
     // Store all current values and errors.
-    const fields = ref<Partial<FieldStore>>({});
-    const errors = ref<Partial<ErrorStore>>({});
+    const fields = ref<DeepPartial<FieldStore>>({});
+    const errors = ref<DeepPartial<ErrorStore>>({});
 
     // Store all of the Field validators config.
-    const validators = ref<{ [K in Keys]?: RuleItem }>({});
+    // we follow the schema for async-validator's nested rules
+    const validators = ref<DeepPartial<RuleItemized<Fields>>>({});
     let validator = new Validator({});
 
     // Some helper refernces.
@@ -26,14 +34,7 @@ export function useForm<Fields extends DefaultFields>(options: Options<Fields>) 
     }, { deep: true });
 
     // Assign defaults.
-    if (options.defaults) {
-        const keys = Object.keys(options.defaults);
-        const total = keys.length;
-
-        for (let i = 0; i < total; i++) {
-            fields.value[keys[i]] = options.defaults[keys[i]];
-        }
-    }
+    assignDefaults(fields.value, options.defaults);
 
     // Validates all of the releveant fields.
     const validate = async () => new Promise(resolve => {
@@ -57,7 +58,7 @@ export function useForm<Fields extends DefaultFields>(options: Options<Fields>) 
     });
 
     // Returns the references to a specific Field.
-    const useField = <K extends Keys>(name: K, fieldOptions: FieldOptions = {}) => {
+    const useField = <K extends NestedKeyOf<Fields>>(name: K, fieldOptions: FieldOptions = {}) => {
         if (!errors.value[name]) {
             errors.value[name] = [];
         }
@@ -71,9 +72,9 @@ export function useForm<Fields extends DefaultFields>(options: Options<Fields>) 
         }
 
         // Computed property for getting & setting the value of the field.
-        const value = computed<Fields[K]>({
+        const value = computed<TypeFromPath<Fields, K>>({
             get() {
-                return fields.value[name];
+                return getNestedProp(fields.value, name);
             },
             set(val) {
                 fields.value[name] = val;
@@ -81,11 +82,12 @@ export function useForm<Fields extends DefaultFields>(options: Options<Fields>) 
         });
 
         // Computed property for fetching the current error(s).
-        const fieldErrors = computed<ValidateError[]>(() => errors.value[name] ?? []);
-        const fieldError = computed<ValidateError|null>(() => {
+        const fieldErrors = computed<ValidateError[]>(() => getNestedProp(errors.value, name) ?? []);
+        const fieldError = computed<ValidateError | null>(() => {
             return fieldErrors.value.length > 0 ? fieldErrors.value[0] : null;
         });
 
+        // TODO: fix
         // Add some manual juice for custom errors.
         const setError = (text: string) => {
             clearError();
@@ -99,7 +101,7 @@ export function useForm<Fields extends DefaultFields>(options: Options<Fields>) 
         };
 
         // Return a reactive object for reactivity, ofc.
-        return reactive<Field<Fields[K]>>({
+        return reactive<Field<TypeFromPath<Fields, K>>>({
             errors: fieldErrors,
             error: fieldError,
             hasError: computed(() => fieldError.value !== null),
@@ -110,7 +112,7 @@ export function useForm<Fields extends DefaultFields>(options: Options<Fields>) 
     };
 
     // Handles form submission.
-    const handle = (run: (values: FieldValues<Fields>) => Promise<void>) => async (e?: Event) => {
+    const handle = (run: (values: Fields) => Promise<void>) => async (e?: Event) => {
         if (e) {
             e.preventDefault();
         }
@@ -134,26 +136,13 @@ export function useForm<Fields extends DefaultFields>(options: Options<Fields>) 
 
     // Clears all Errors.
     const clearErrors = () => {
-        const keys = Object.keys(errors.value);
-        const total = keys.length;
-
-        for (let i = 0; i < total; i++) {
-            errors.value[keys[i]] = [];
-        }
+        assignDefaults(errors.value, {}, [])
     };
 
     // Resets the Form values to their defaults or blank values.
     const reset = () => {
-        const keys = Object.keys(fields.value);
-        const total = keys.length;
-
-        for (let i = 0; i < total; i++) {
-            const key = keys[i];
-            fields.value[key] = (options.defaults && options.defaults[key]) ? options.defaults[key] : '';
-            errors.value[key] = [];
-        }
-
-        loading.value = false;
+        assignDefaults(fields.value, options.defaults)
+        assignDefaults(errors.value, {}, [])
     };
 
     // Handle clean-up.

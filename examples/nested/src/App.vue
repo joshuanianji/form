@@ -45,11 +45,10 @@
             email: string;
             password: string;
         },
-        address: {
-            street: string;
-            city: string;
-            state: string;
-            zip: string;
+        demographic: {
+            age: number,
+            height: number,
+            weight: number,
         }
     }
 
@@ -61,17 +60,21 @@
         },
     });
 
-    // ! errors!
-    const email = useField('email', {
+    const email = useField('userDetails.email', {
         required: true,
     });
-    const password = useField('password', {
+    const password = useField('userDetails.password', {
         required: true,
     });
+    const age = useField('demographic', {
+        required: true
+    })
 
-    const submit = handle(async ({ email, password }) => {
+    const submit = handle(async (data) => {
         await sleep(2);
-        alert(`Email: ${email} Password: ${password}`);
+        console.group('SUBMITTED DATA:')
+        console.log(data);
+        console.groupEnd();
     });
 
     const manualError = () => {
